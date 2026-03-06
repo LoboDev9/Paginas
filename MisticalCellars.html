@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MisticalCellars</title>
+
+<style>
+
+/* ---------------------------
+ESTILO GENERAL
+--------------------------- */
+
+body{
+font-family:Arial;
+background:#0f0f0f;
+color:white;
+margin:0;
+}
+
+/* ---------------------------
+CABECERA
+--------------------------- */
+
+header{
+text-align:center;
+padding:40px 20px;
+}
+
+.icon{
+width:90px;
+height:90px;
+border-radius:50%;
+object-fit:cover;
+margin-top:10px;
+}
+
+.description{
+max-width:800px;
+margin:auto;
+padding:10px 20px;
+text-align:center;
+}
+
+/* ---------------------------
+CARRUSEL
+--------------------------- */
+
+.carousel{
+display:flex;
+gap:20px;
+overflow-x:auto;
+padding:20px;
+scroll-behavior:smooth;
+}
+
+.carousel::-webkit-scrollbar{
+display:none;
+}
+
+.card{
+min-width:420px;
+height:240px;
+background:#1a1a1a;
+border-radius:12px;
+flex-shrink:0;
+overflow:hidden;
+}
+
+.card img{
+width:100%;
+height:100%;
+object-fit:cover;
+}
+
+.card iframe{
+width:100%;
+height:100%;
+border:none;
+}
+
+/* ---------------------------
+ICONOS (DESCARGA Y REDES)
+--------------------------- */
+
+.stores{
+text-align:center;
+margin:30px;
+}
+
+.stores a{
+margin:15px;
+display:inline-block;
+}
+
+/* ICONOS BLANCOS */
+
+.stores img{
+width:40px;
+filter: brightness(0) invert(1);
+transition:0.2s;
+}
+
+/* EFECTO AL PASAR EL MOUSE */
+
+.stores img:hover{
+opacity:0.7;
+transform:scale(1.1);
+}
+
+/* ---------------------------
+ACTUALIZACIONES
+--------------------------- */
+
+.updates{
+max-width:700px;
+margin:auto;
+padding:20px;
+}
+
+.update{
+background:#1a1a1a;
+padding:15px;
+border-radius:10px;
+margin-bottom:20px;
+}
+
+.event-img{
+width:100%;
+height:160px;
+object-fit:cover;
+border-radius:8px;
+margin-top:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+
+<!-- ============================= -->
+<!-- CABECERA DEL JUEGO -->
+<!-- ============================= -->
+
+<header>
+
+<h1>MisticalCellars</h1>
+
+<img class="icon" src="https://cdn.discordapp.com/attachments/1215778681360879667/1479312264472432795/21_sin_titulo_20251123174308.png?ex=69ab9468&is=69aa42e8&hm=f923eca7cdd73aeec0ff5dcf661074c36c12f9ee57cfde1e252a503b145b7d9e&">
+
+<div class="description">
+
+<p>
+Este juego remonta en un sótano en el que te quedaste atrapado,
+en este sótano hay fantasmas que te quieren matar por estar en su territorio.
+</p>
+
+</div>
+
+</header>
+
+
+<!-- ============================= -->
+<!-- CARRUSEL -->
+<!-- ============================= -->
+
+<div class="carousel">
+
+<div class="card">
+<iframe src="https://www.youtube.com/embed/7Sm5fvik8oo" allowfullscreen></iframe>
+</div>
+
+<div class="card">
+<img src="https://cdn.discordapp.com/attachments/1479332101282070549/1479560988599521402/chibi-mob-art-v0-wbqnp6kmt9ka1.png?ex=69ac7c0c&is=69ab2a8c&hm=ed7da98916b68a21e444b79d55e9da7065c8cba346ab795ce18046d859f4c709&">
+</div>
+
+<div class="card">
+<img src="https://cdn.discordapp.com/attachments/1479332101282070549/1479560989467738304/chibi-mob-art-v0-kerqtm6nt9ka1.png?ex=69ac7c0c&is=69ab2a8c&hm=4e834a85efccd0a00d366a41635f5cfdb8783867e80606189e1f0d82250caec9&">
+</div>
+
+<div class="card">
+<img src="https://cdn.discordapp.com/attachments/1479332101282070549/1479560990306865232/chibi-mob-art-v0-fetc5fwmt9ka1.png?ex=69ac7c0d&is=69ab2a8d&hm=657c57653695e7073eb0bc922269cc3a28ba14eea15de4bae779afe1d0ab9d61&">
+</div>
+
+</div>
+
+
+<!-- ============================= -->
+<!-- DESCARGAS -->
+<!-- ============================= -->
+
+<div class="stores">
+
+<a href="https://play.google.com/store" target="_blank">
+<img src="https://cdn.simpleicons.org/googleplay/white">
+</a>
+
+<a href="https://www.apple.com/app-store/" target="_blank">
+<img src="https://cdn-icons-png.flaticon.com/512/731/731985.png">
+</a>
+
+<a href="https://itch.io" target="_blank">
+<img src="https://static.itch.io/images/itchio-textless-black.svg">
+</a>
+
+</div>
+
+
+<!-- ============================= -->
+<!-- ACTUALIZACIONES -->
+<!-- ============================= -->
+
+<div class="updates">
+
+<h2>Actualizaciones y eventos</h2>
+
+<div class="update">
+
+<b>Versión 1.1</b><br>
+Nuevo mapa agregado y mejoras de rendimiento.
+
+</div>
+
+<div class="update">
+
+<b>Evento especial</b><br>
+Evento de temporada con recompensas exclusivas.
+
+<img class="event-img" src="https://cdn.discordapp.com/attachments/1479332101282070549/1479560987622510662/5eebf565b54676555f1034ee3872c88b.jpg?ex=69ac7c0c&is=69ab2a8c&hm=20d4c37bb829a86cffbc0f634584db40bbfd90f07dfe6626e88fe24165f45c64&">
+
+</div>
+
+</div>
+
+
+<!-- ============================= -->
+<!-- REDES SOCIALES -->
+<!-- ============================= -->
+
+<div class="stores">
+
+<a href="https://discord.com" target="_blank">
+<img src="https://cdn-icons-png.flaticon.com/512/2111/2111370.png">
+</a>
+
+<a href="https://youtube.com" target="_blank">
+<img src="https://cdn.simpleicons.org/youtube/white">
+</a>
+
+<a href="https://twitter.com" target="_blank">
+<img src="https://cdn.simpleicons.org/x/white">
+</a>
+
+<a href="https://tiktok.com" target="_blank">
+<img src="https://cdn.simpleicons.org/tiktok/white">
+</a>
+
+</div>
+
+
+</body>
+</html>

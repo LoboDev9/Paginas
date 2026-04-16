@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Pizarra Infinita</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0d0d12; --grid:#181820; --surface:#16161f; --surface2:#1e1e2a; --surface3:#27273a;
+  --border:#2e2e42; --border-hi:#44446a;
+  --accent:#5b8af7; --accent3:#5bf7c0;
+  --text:#dddaf0; --dim:#7070a0;
+  --danger:#f75b5b; --shadow:rgba(0,0,0,.75);
+  --font:'Familjen Grotesk',sans-serif; --mono:'DM Mono',monospace;
+  --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--font);color:var(--text);}
+
+/* ── VIEWPORT / WORLD ── */
+#viewport{
+  position:fixed;inset:0;overflow:hidden;touch-action:none;
+  background:var(--bg);
+  background-image:radial-gradient(circle,var(--grid) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+#world{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;}
+
+/* ── NODO ── */
+.node{
+  position:absolute;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r);
+  box-shadow:0 4px 32px var(--shadow);
+  /* NO transition en transform para que el drag sea instantáneo */
+  transition:border-color .15s,box-shadow .15s;
+}
+.node:hover{border-color:var(--border-hi);box-shadow:0 8px 48px var(--shadow);}
+.node.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent),0 8px 40px var(--shadow);}
+
+/* Cabecera — ÚNICA zona de drag */
+.nh{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 10px 8px;
+  background:var(--surface2);border-bottom:1px solid var(--border);
+  border-radius:var(--r) var(--r) 0 0;
+  cursor:grab;
+}
+.nh:active{cursor:grabbing;}
+.ni{font-size:14px;flex-shrink:0;}
+.nt{flex:1;font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--dim);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.nb{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;padding:2px 5px;border-radius:5px;transition:background .12s,color .12s;line-height:1;}
+.nb:hover{background:var(--surface3);color:var(--text);}
+.nb.del:hover{color:var(--danger);}
+
+/* Cuerpo */
+.nbody{padding:10px 11px;}
+
+/* Resize handle */
+.nrz{position:absolute;bottom:0;right:0;width:16px;height:16px;cursor:se-resize;opacity:0;transition:opacity .15s;}
+.node:hover .nrz,.node.sel .nrz{opacity:1;}
+.nrz::after{content:'';position:absolute;bottom:4px;right:4px;width:6px;height:6px;border-bottom:2px solid var(--border-hi);border-right:2px solid var(--border-hi);}
+
+/* ── Textarea ── */
+.nta{width:100%;min-height:80px;resize:none;background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;line-height:1.7;}
+.nta::placeholder{color:var(--dim);}
+
+/* ── URL input ── */
+.nui{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 9px;outline:none;transition:border-color .15s;}
+.nui:focus{border-color:var(--accent);}
+.nui::placeholder{color:var(--dim);}
+
+/* ── Media source toggle row ── */
+.msrow{display:flex;gap:5px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.msbtn{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 11px;
+  border-radius:7px;border:1px solid var(--border-hi);
+  background:var(--surface3);color:var(--accent3);
+  font-family:var(--font);font-size:11px;font-weight:600;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.msbtn:hover{background:var(--surface2);}
+.msbtn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.msep{font-size:10px;color:var(--dim);font-family:var(--mono);}
+
+/* Panels de input — visible / oculto */
+.mpanel{display:none;flex-direction:column;gap:6px;margin-bottom:8px;}
+.mpanel.open{display:flex;}
+
+/* Imagen */
+.nimg{width:100%;border-radius:8px;display:block;object-fit:contain;background:var(--surface2);max-height:320px;}
+.nimg-ph{
+  width:100%;height:110px;border:1.5px dashed var(--border-hi);border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  color:var(--dim);font-size:12px;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.nimg-ph:hover{border-color:var(--accent);background:var(--surface2);}
+
+/* Video */
+.nvw{position:relative;padding-bottom:56.25%;height:0;border-radius:8px;overflow:hidden;background:#000;}
+.nvw iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
+.nvnat{width:100%;border-radius:8px;background:#000;display:block;max-height:260px;}
+
+/* Link */
+.nlink{display:flex;gap:10px;align-items:center;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;text-decoration:none;color:var(--text);transition:border-color .15s;}
+.nlink:hover{border-color:var(--accent);}
+.nfav{width:28px;height:28px;border-radius:6px;flex-shrink:0;background:var(--surface3);}
+.nli{flex:1;min-width:0;}
+.nlt{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nld{font-size:10px;color:var(--accent);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* Nota sticky */
+.node.type-note{background:#2a2218;border-color:#5a4a28;}
+.node.type-note .nh{background:#342b1a;border-color:#5a4a28;}
+.node.type-note .nta{color:#f0e8c8;}
+
+/* Coords row */
+.posrow{display:flex;gap:4px;align-items:center;margin-top:6px;}
+.poslab{font-size:10px;color:var(--dim);font-family:var(--mono);}
+.posinp{width:72px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--dim);font-family:var(--mono);font-size:10px;padding:4px 6px;outline:none;transition:border-color .12s;}
+.posinp:focus{border-color:var(--accent);color:var(--text);}
+
+/* ── HUD ── */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:100;}
+#hud>*{pointer-events:all;}
+
+#btnMenu{
+  position:fixed;top:14px;left:14px;width:36px;height:36px;
+  display:flex;flex-direction:column;justify-content:center;gap:4.5px;
+  background:var(--surface);border:1px solid var(--border-hi);border-radius:9px;padding:8px 7px;
+  cursor:pointer;transition:border-color .15s,background .15s;box-shadow:0 2px 14px var(--shadow);
+}
+#btnMenu:hover{border-color:var(--accent);background:var(--surface2);}
+#btnMenu span{display:block;height:2px;background:var(--text);border-radius:2px;}
+#btnMenu:hover span{background:var(--accent3);}
+
+#toolbar{
+  position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:5px;
+  background:var(--surface);border:1px solid var(--border-hi);border-radius:14px;padding:6px 10px;
+  box-shadow:0 8px 40px var(--shadow);flex-wrap:wrap;justify-content:center;
+}
+.tblabel{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-right:2px;}
+.tbbtn{
+  display:flex;align-items:center;gap:4px;padding:6px 11px;border-radius:9px;
+  border:1px solid var(--border);background:var(--surface2);color:var(--text);
+  font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;
+}
+.tbbtn:hover{background:var(--accent);border-color:var(--accent);color:#fff;transform:translateY(-1px);}
+
+#zoombar{
+  position:fixed;bottom:18px;right:16px;
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:5px 10px;
+  box-shadow:0 2px 14px var(--shadow);font-family:var(--mono);font-size:11px;color:var(--dim);
+}
+.zbtn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;padding:0 2px;line-height:1;transition:color .12s;}
+.zbtn:hover{color:var(--accent3);}
+
+#coords{position:fixed;bottom:56px;right:16px;font-family:var(--mono);font-size:10px;color:var(--dim);opacity:.45;pointer-events:none;}
+
+/* ── PANEL PIZARRAS ── */
+#panel{
+  position:fixed;top:60px;left:14px;width:220px;max-height:calc(100vh - 80px);
+  background:var(--surface);border:1px solid var(--border-hi);border-radius:13px;
+  display:flex;flex-direction:column;box-shadow:0 8px 40px var(--shadow);z-index:200;
+  opacity:0;pointer-events:none;transform:scale(.95) translateY(-8px);
+  transition:opacity .18s,transform .18s;user-select:none;
+}
+#panel.open{opacity:1;pointer-events:all;transform:scale(1) translateY(0);}
+#pdrag{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 8px;cursor:grab;border-bottom:1px solid var(--border);flex-shrink:0;}
+#pdrag:active{cursor:grabbing;}
+.pdlabel{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--dim);}
+.pdhnd{display:flex;flex-direction:column;gap:2px;opacity:.25;}
+.pdhnd span{display:block;width:14px;height:2px;background:var(--text);border-radius:2px;}
+.btnnew{background:var(--accent);border:none;color:#fff;width:22px;height:22px;border-radius:6px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:background .2s,transform .1s;}
+.btnnew:hover{background:#7ba8ff;transform:scale(1.1);}
+#blist{flex:1;overflow-y:auto;padding:5px 7px;display:flex;flex-direction:column;gap:2px;}
+.bi{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;cursor:pointer;transition:background .12s;border:1px solid transparent;position:relative;}
+.bi:hover{background:var(--surface2);}
+.bi.active{background:var(--surface2);border-color:var(--border-hi);}
+.bi.active::before{content:'';position:absolute;left:0;top:22%;bottom:22%;width:2px;background:var(--accent);border-radius:2px;}
+.bem{font-size:14px;flex-shrink:0;}
+.bnm{flex:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:none;border:none;color:var(--text);font-family:var(--font);cursor:pointer;padding:0;}
+.bnm:focus{outline:none;color:var(--accent3);}
+.bdel{background:none;border:none;color:var(--dim);cursor:pointer;font-size:12px;opacity:0;transition:opacity .12s,color .12s;padding:2px 4px;}
+.bi:hover .bdel{opacity:1;}
+.bdel:hover{color:var(--danger);}
+
+/* ── EMOJI PICKER ── */
+#epicker{position:fixed;background:var(--surface2);border:1px solid var(--border-hi);border-radius:10px;padding:8px;display:flex;flex-wrap:wrap;gap:3px;width:200px;z-index:9999;box-shadow:0 8px 30px var(--shadow);}
+.eopt{font-size:18px;padding:4px;cursor:pointer;border-radius:5px;transition:background .1s;}
+.eopt:hover{background:var(--surface3);}
+
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="world"></div></div>
+
+<div id="hud">
+  <button id="btnMenu"><span></span><span></span><span></span></button>
+
+  <div id="panel">
+    <div id="pdrag">
+      <span class="pdlabel">Pizarras</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btnnew" id="btnNB">+</button>
+        <div class="pdhnd"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <div id="blist"></div>
+  </div>
+
+  <div id="toolbar">
+    <span class="tblabel">Agregar</span>
+    <button class="tbbtn" onclick="spawnNode('text')">📝 Texto</button>
+    <button class="tbbtn" onclick="spawnNode('note')">📌 Nota</button>
+    <button class="tbbtn" onclick="spawnNode('image')">🖼️ Imagen</button>
+    <button class="tbbtn" onclick="spawnNode('link')">🔗 Link</button>
+    <button class="tbbtn" onclick="spawnNode('video')">🎬 Video</button>
+  </div>
+
+  <div id="zoombar">
+    <button class="zbtn" onclick="zoom(cam.z/1.25)">−</button>
+    <span id="zval">100%</span>
+    <button class="zbtn" onclick="zoom(cam.z*1.25)">+</button>
+    <button class="zbtn" onclick="resetCam()" title="Reset">⌂</button>
+  </div>
+  <div id="coords">x 0.00  y 0.00</div>
+</div>
+
+<div id="epicker" style="display:none"></div>
+
+<script>
+/* ═══ ESTADO ═══════════════════════════════════════════════════ */
+let S = { boards:[], activeId:null };
+const blobMap = {};
+let emojiTarget = null;
+const EMOJIS = ['📌','📋','🗂️','🎮','🎨','🎵','🎬','📸','🔥','💡','🌿','🏗️','🧠','💻','🌙','⚡','🎯','🧩','🌸','🦋','🐺','🎭','📚','✨','🔮','🏆','🌈','🎪','🎲','🗺️'];
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function save(){
+  try{
+    const c=JSON.parse(JSON.stringify(S));
+    c.boards.forEach(b=>b.nodes.forEach(n=>{ if(n.type==='video'&&n.data.isLocal) n.data.blobUrl=''; }));
+    localStorage.setItem('piz_v4',JSON.stringify(c));
+  }catch{}
+}
+function load(){
+  try{ const r=localStorage.getItem('piz_v4'); if(r) S=JSON.parse(r); }catch{}
+}
+function getBoard(){ return S.boards.find(b=>b.id===S.activeId)||null; }
+
+/* ═══ CÁMARA ════════════════════════════════════════════════════ */
+const VP  = document.getElementById('viewport');
+const WLD = document.getElementById('world');
+const cam = {x:0,y:0,z:1};
+const MIN_Z=0.08, MAX_Z=4;
+
+function applyCAM(){
+  WLD.style.transform=`translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
+  document.getElementById('zval').textContent=Math.round(cam.z*100)+'%';
+  // Actualizar fondo para efecto parallax de dots
+  VP.style.backgroundPosition=`${cam.x}px ${cam.y}px`;
+  VP.style.backgroundSize=`${40*cam.z}px ${40*cam.z}px`;
+}
+function zoom(z,cx,cy){
+  const oz=cam.z;
+  cam.z=Math.max(MIN_Z,Math.min(MAX_Z,z));
+  if(cx!=null){ cam.x=cx-(cx-cam.x)*(cam.z/oz); cam.y=cy-(cy-cam.y)*(cam.z/oz); }
+  applyCAM();
+}
+function resetCam(){ cam.x=0;cam.y=0;cam.z=1; applyCAM(); }
+function toWorld(vx,vy){ return {x:(vx-cam.x)/cam.z, y:(vy-cam.y)/cam.z}; }
+function viewCenter(){ return toWorld(innerWidth/2,innerHeight/2); }
+function showCoords(wx,wy){ document.getElementById('coords').textContent=`x ${wx.toFixed(2)}  y ${wy.toFixed(2)}`; }
+
+/* ═══ DRAG CENTRALIZADO (pan + nodos, una sola fuente de verdad) ═
+   Estado de drag — sólo uno puede estar activo a la vez           */
+const drag = {
+  active: false,
+  kind: null,    // 'pan' | 'node' | 'resize' | 'panel'
+  // pan
+  panSX:0, panSY:0, panCX:0, panCY:0,
+  // node
+  nodeId: null,
+  nodeSX:0, nodeSY:0, nodeX0:0, nodeY0:0,
+  // resize
+  resId:null, resSX:0, resW0:0,
+  // panel
+  panelSX:0,panelSY:0,panelX0:0,panelY0:0,
+};
+
+function getC(e){ return e.touches?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY}; }
+
+/* ── MOUSEDOWN / TOUCHSTART global ── */
+document.addEventListener('pointerdown', e=>{
+  const c={x:e.clientX,y:e.clientY};
+
+  /* 1. Resize handle de nodo */
+  const rzHandle = e.target.closest('.nrz');
+  if(rzHandle){
+    const nodeEl = rzHandle.closest('.node');
+    const nid    = nodeEl?.dataset.nid;
+    const node   = getBoard()?.nodes.find(n=>n.id===nid);
+    if(node){
+      drag.active=true; drag.kind='resize';
+      drag.resId=nid; drag.resSX=c.x; drag.resW0=node.w||280;
+      e.preventDefault(); e.stopPropagation();
+      return;
+    }
+  }
+
+  /* 2. Drag de cabecera de nodo */
+  const head = e.target.closest('.nh');
+  if(head){
+    // Ignorar clics en botones dentro del head
+    if(e.target.closest('.nb')) return;
+    const nodeEl = head.closest('.node');
+    const nid    = nodeEl?.dataset.nid;
+    const node   = getBoard()?.nodes.find(n=>n.id===nid);
+    if(node){
+      drag.active=true; drag.kind='node';
+      drag.nodeId=nid; drag.nodeSX=c.x; drag.nodeSY=c.y;
+      drag.nodeX0=node.x; drag.nodeY0=node.y;
+      selectNode(nid);
+      e.preventDefault();
+      return;
+    }
+  }
+
+  /* 3. Drag del panel de pizarras */
+  if(e.target.closest('#pdrag') && !e.target.closest('.btnnew')){
+    drag.active=true; drag.kind='panel';
+    drag.panelSX=c.x; drag.panelSY=c.y;
+    drag.panelX0=panelPos.x; drag.panelY0=panelPos.y;
+    e.preventDefault();
+    return;
+  }
+
+  /* 4. Pan del viewport (click en fondo) */
+  const onNode = e.target.closest('.node');
+  const onHUD  = e.target.closest('#hud');
+  if(!onNode && !onHUD){
+    drag.active=true; drag.kind='pan';
+    drag.panSX=c.x; drag.panSY=c.y; drag.panCX=cam.x; drag.panCY=cam.y;
+    selectNode(null);
+    e.preventDefault();
+    return;
+  }
+
+  /* 5. Click en nodo (no en head ni controles) → solo seleccionar */
+  if(onNode && !e.target.closest('.nb,.nta,.nui,.msbtn,video,iframe,a,.posinp,input,label')){
+    const nid=onNode.dataset.nid;
+    selectNode(nid);
+  }
+}, {passive:false});
+
+/* ── POINTERMOVE ── */
+document.addEventListener('pointermove', e=>{
+  if(!drag.active) return;
+  const c={x:e.clientX,y:e.clientY};
+
+  if(drag.kind==='pan'){
+    cam.x=drag.panCX+(c.x-drag.panSX);
+    cam.y=drag.panCY+(c.y-drag.panSY);
+    applyCAM();
+    const w=toWorld(c.x,c.y); showCoords(w.x,w.y);
+    return;
+  }
+
+  if(drag.kind==='node'){
+    const dx=(c.x-drag.nodeSX)/cam.z;
+    const dy=(c.y-drag.nodeSY)/cam.z;
+    const nx=drag.nodeX0+dx, ny=drag.nodeY0+dy;
+    const nodeEl=document.querySelector(`[data-nid="${drag.nodeId}"]`);
+    if(nodeEl){
+      nodeEl.style.left=nx+'px';
+      nodeEl.style.top =ny+'px';
+      // Actualizar inputs de posición en tiempo real
+      const px=nodeEl.querySelector('.pos-x'); if(px) px.value=+(Math.round(nx*100)/100);
+      const py=nodeEl.querySelector('.pos-y'); if(py) py.value=+(Math.round(ny*100)/100);
+    }
+    // Guardar en estado sin save() — solo al soltar
+    const board=getBoard();
+    if(board){
+      const node=board.nodes.find(n=>n.id===drag.nodeId);
+      if(node){ node.x=Math.round(nx*100)/100; node.y=Math.round(ny*100)/100; }
+    }
+    return;
+  }
+
+  if(drag.kind==='resize'){
+    const dw=(c.x-drag.resSX)/cam.z;
+    const nw=Math.max(180, Math.round((drag.resW0+dw)*100)/100);
+    const nodeEl=document.querySelector(`[data-nid="${drag.resId}"]`);
+    if(nodeEl) nodeEl.style.width=nw+'px';
+    const board=getBoard();
+    if(board){
+      const node=board.nodes.find(n=>n.id===drag.resId);
+      if(node) node.w=nw;
+    }
+    return;
+  }
+
+  if(drag.kind==='panel'){
+    panelPos.x=drag.panelX0+(c.x-drag.panelSX);
+    panelPos.y=drag.panelY0+(c.y-drag.panelSY);
+    applyPanelPos();
+    return;
+  }
+},{passive:false});
+
+/* ── POINTERUP ── */
+document.addEventListener('pointerup', e=>{
+  if(!drag.active) return;
+  if(drag.kind==='node'||drag.kind==='resize') save();
+  drag.active=false; drag.kind=null;
+});
+
+/* Mostrar coords al mover sin drag */
+VP.addEventListener('mousemove', e=>{
+  if(drag.active) return;
+  const w=toWorld(e.clientX,e.clientY);
+  showCoords(w.x,w.y);
+});
+
+/* Zoom con rueda */
+VP.addEventListener('wheel', e=>{
+  e.preventDefault();
+  zoom(cam.z*(e.deltaY<0?1.1:0.9), e.clientX, e.clientY);
+},{passive:false});
+
+/* Pinch zoom touch */
+let pt0=null,pt1=null,pinD=0,pinCX=0,pinCY=0,pinZ=0;
+VP.addEventListener('touchstart', e=>{
+  if(e.touches.length===2){
+    drag.active=false; // cancelar pan/node si venía
+    pt0=e.touches[0]; pt1=e.touches[1];
+    pinD=Math.hypot(pt1.clientX-pt0.clientX,pt1.clientY-pt0.clientY);
+    pinCX=(pt0.clientX+pt1.clientX)/2; pinCY=(pt0.clientY+pt1.clientY)/2;
+    pinZ=cam.z;
+    e.preventDefault();
+  }
+},{passive:false});
+VP.addEventListener('touchmove', e=>{
+  if(e.touches.length===2&&pt0&&pt1){
+    const a=e.touches[0],b=e.touches[1];
+    const d=Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+    zoom(pinZ*(d/pinD),pinCX,pinCY);
+    e.preventDefault();
+  }
+},{passive:false});
+VP.addEventListener('touchend',()=>{pt0=null;pt1=null;});
+
+/* ═══ SELECCIÓN DE NODOS ══════════════════════════════════════ */
+let selId=null, _z=10;
+function nextZ(){ return ++_z; }
+function selectNode(id){
+  document.querySelectorAll('.node.sel').forEach(el=>el.classList.remove('sel'));
+  selId=id;
+  if(id){
+    const el=document.querySelector(`[data-nid="${id}"]`);
+    if(el){ el.classList.add('sel'); el.style.zIndex=nextZ(); }
+  }
+}
+
+/* ═══ GESTIÓN DE PIZARRAS ════════════════════════════════════ */
+function createBoard(){
+  const b={id:uid(),name:'Nueva pizarra',emoji:EMOJIS[Math.floor(Math.random()*EMOJIS.length)],nodes:[]};
+  S.boards.push(b); S.activeId=b.id;
+  save(); renderPanel(); renderWorld();
+  setTimeout(()=>{ const ns=document.querySelectorAll('.bnm'); if(ns.length){const l=ns[ns.length-1];l.focus();l.select();} },60);
+}
+function deleteBoard(id){
+  if(!confirm('¿Eliminar esta pizarra?')) return;
+  S.boards=S.boards.filter(b=>b.id!==id);
+  if(S.activeId===id) S.activeId=S.boards[0]?.id||null;
+  save(); renderPanel(); renderWorld();
+}
+function selectBoard(id){ S.activeId=id; save(); renderPanel(); renderWorld(); }
+function renameBoard(id,name){ const b=S.boards.find(b=>b.id===id); if(b){b.name=name;save();renderPanel();} }
+function setEmoji(id,emoji){ const b=S.boards.find(b=>b.id===id); if(b){b.emoji=emoji;save();renderPanel();} }
+
+/* ═══ GESTIÓN DE NODOS ═══════════════════════════════════════ */
+function spawnNode(type){
+  const board=getBoard(); if(!board){alert('Crea una pizarra primero.');return;}
+  const c=viewCenter();
+  const node={id:uid(),type,
+    x:Math.round((c.x-140+(Math.random()-.5)*80)*100)/100,
+    y:Math.round((c.y-80 +(Math.random()-.5)*80)*100)/100,
+    w:280, data:{}};
+  board.nodes.push(node); save();
+  renderNode(node); selectNode(node.id);
+}
+function deleteNode(id){
+  const board=getBoard(); if(!board) return;
+  if(blobMap[id]){URL.revokeObjectURL(blobMap[id]);delete blobMap[id];}
+  board.nodes=board.nodes.filter(n=>n.id!==id);
+  document.querySelector(`[data-nid="${id}"]`)?.remove();
+  save();
+}
+function updData(id,key,val){
+  const board=getBoard(); if(!board) return;
+  const n=board.nodes.find(n=>n.id===id);
+  if(n){n.data[key]=val;save();}
+}
+function teleport(id,axis,val){
+  const board=getBoard(); if(!board) return;
+  const node=board.nodes.find(n=>n.id===id); if(!node) return;
+  val=Math.round(+val*100)/100;
+  if(axis==='x') node.x=val; else node.y=val;
+  const el=document.querySelector(`[data-nid="${id}"]`);
+  if(el){ el.style.left=node.x+'px'; el.style.top=node.y+'px'; }
+  save();
+}
+
+/* Toggle panel de media source */
+function toggleSource(nid, which){
+  const nodeEl=document.querySelector(`[data-nid="${nid}"]`); if(!nodeEl) return;
+  const panels=nodeEl.querySelectorAll('.mpanel');
+  const btns  =nodeEl.querySelectorAll('.msbtn');
+  panels.forEach((p,i)=>{
+    const open=(i===which);
+    p.classList.toggle('open', open);
+    if(btns[i]) btns[i].classList.toggle('active', open);
+  });
+}
+
+/* ═══ UPLOAD HANDLERS ════════════════════════════════════════ */
+function handleImg(id,file){
+  if(!file) return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    const board=getBoard(); if(!board) return;
+    const node=board.nodes.find(n=>n.id===id); if(!node) return;
+    node.data.url=e.target.result; node.data.srcMode='file';
+    save(); renderNode(node);
+  };
+  rd.readAsDataURL(file);
+}
+function handleVid(id,file){
+  if(!file) return;
+  if(blobMap[id]) URL.revokeObjectURL(blobMap[id]);
+  blobMap[id]=URL.createObjectURL(file);
+  const board=getBoard(); if(!board) return;
+  const node=board.nodes.find(n=>n.id===id); if(!node) return;
+  node.data.isLocal=true; node.data.localName=file.name; node.data.blobUrl='';
+  save(); renderNode(node);
+}
+
+/* ═══ HELPERS ════════════════════════════════════════════════ */
+function ytEmbed(u){ const m=u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]+)/); return m?`https://www.youtube.com/embed/${m[1]}`:null; }
+function viEmbed(u){ const m=u.match(/vimeo\.com\/(\d+)/); return m?`https://player.vimeo.com/video/${m[1]}`:null; }
+function embedUrl(u){ return ytEmbed(u)||viEmbed(u)||null; }
+function domain(u){ try{return new URL(u).hostname;}catch{return u;} }
+function favicon(u){ try{return `https://www.google.com/s2/favicons?domain=${new URL(u).hostname}&sz=32`;}catch{return '';} }
+
+/* ═══ RENDER MUNDO ════════════════════════════════════════════ */
+function renderWorld(){
+  WLD.innerHTML='';
+  const board=getBoard(); if(!board) return;
+  board.nodes.forEach(n=>renderNode(n));
+}
+
+function renderNode(node){
+  let el=document.querySelector(`[data-nid="${node.id}"]`);
+  const isNew=!el;
+  if(isNew){ el=document.createElement('div'); el.dataset.nid=node.id; WLD.appendChild(el); }
+  el.className='node type-'+node.type+(selId===node.id?' sel':'');
+  el.style.cssText=`left:${node.x}px;top:${node.y}px;width:${node.w||280}px;z-index:${isNew?nextZ():el.style.zIndex||nextZ()};`;
+  el.innerHTML=buildHTML(node);
+  // Adjuntar listeners de inputs (siempre, porque innerHTML se reemplazó)
+  attachInputs(el,node);
+}
+
+/* ═══ BUILD HTML ══════════════════════════════════════════════ */
+function buildHTML(node){
+  const id=node.id;
+  const delBtn=`<button class="nb del" onclick="deleteNode('${id}')" title="Eliminar">✕</button>`;
+  const posRow=`
+    <div class="posrow">
+      <span class="poslab">x</span>
+      <input class="posinp pos-x" type="number" value="${node.x}" step="0.01"
+        onchange="teleport('${id}','x',this.value)" onclick="this.select()"/>
+      <span class="poslab">y</span>
+      <input class="posinp pos-y" type="number" value="${node.y}" step="0.01"
+        onchange="teleport('${id}','y',this.value)" onclick="this.select()"/>
+    </div>`;
+
+  /* ── TEXTO / NOTA ── */
+  if(node.type==='text'||node.type==='note'){
+    const icon=node.type==='note'?'📌':'📝';
+    const label=node.type==='note'?'Nota':'Texto';
+    const h=node.data.h||90;
+    return `
+      <div class="nh"><span class="ni">${icon}</span><span class="nt">${label}</span>${delBtn}</div>
+      <div class="nbody">
+        <textarea class="nta" placeholder="Escribe aquí…"
+          data-nid="${id}" data-key="content"
+          style="height:${h}px">${esc(node.data.content||'')}</textarea>
+        ${posRow}
+      </div>
+      <div class="nrz"></div>`;
+  }
+
+  /* ── IMAGEN ── */
+  if(node.type==='image'){
+    const hasImg=node.data.url?.length>0;
+    // srcMode: 'file' | 'url' | null
+    const mode=node.data.srcMode||null;
+    // qué panel mostrar abierto
+    const fileOpen = mode==='file' ? 'open':'';
+    const urlOpen  = mode==='url'  ? 'open':'';
+    const fileActive = mode==='file' ? 'active':'';
+    const urlActive  = mode==='url'  ? 'active':'';
+
+    const preview=hasImg
+      ? `<img class="nimg" src="${esc(node.data.url)}" alt="img" onerror="this.style.opacity='.3'" style="margin-bottom:8px"/>`
+      : '';
+
+    return `
+      <div class="nh"><span class="ni">🖼️</span><span class="nt">Imagen</span>${delBtn}</div>
+      <div class="nbody">
+        ${preview}
+        <div class="msrow">
+          <button class="msbtn ${fileActive}" onclick="toggleSource('${id}',0)">📁 Archivo</button>
+          <span class="msep">·</span>
+          <button class="msbtn ${urlActive}"  onclick="toggleSource('${id}',1)">🔗 URL</button>
+        </div>
+        <div class="mpanel ${fileOpen}">
+          <label class="msbtn" style="cursor:pointer">
+            📂 Seleccionar imagen
+            <input type="file" accept="image/*" style="display:none"
+              onchange="handleImg('${id}',this.files[0])"/>
+          </label>
+        </div>
+        <div class="mpanel ${urlOpen}">
+          <input class="nui" placeholder="https://ejemplo.com/imagen.png"
+            value="${esc(mode==='url'?node.data.url||'':'')}"
+            data-nid="${id}" data-key="url" data-imgblock="1"/>
+        </div>
+        ${posRow}
+      </div>
+      <div class="nrz"></div>`;
+  }
+
+  /* ── LINK ── */
+  if(node.type==='link'){
+    const url=node.data.url||'';
+    const dom=url?domain(url):'';
+    const fav=url?favicon(url):'';
+    const preview=url?`
+      <a class="nlink" href="${esc(url)}" target="_blank" rel="noopener">
+        ${fav?`<img class="nfav" src="${fav}" alt="" onerror="this.style.display='none'"/>` :''}
+        <div class="nli"><div class="nlt">${esc(dom||url)}</div><div class="nld">${esc(dom)}</div></div>
+        <span style="color:var(--accent);font-size:14px">↗</span>
+      </a>`:'';
+    return `
+      <div class="nh"><span class="ni">🔗</span><span class="nt">Link</span>${delBtn}</div>
+      <div class="nbody">
+        <input class="nui" placeholder="https://…"
+          value="${esc(url)}" data-nid="${id}" data-key="url" data-linkblock="1"
+          style="margin-bottom:${preview?'8px':'0'}"/>
+        ${preview}
+        ${posRow}
+      </div>
+      <div class="nrz"></div>`;
+  }
+
+  /* ── VIDEO ── */
+  if(node.type==='video'){
+    const url=node.data.url||'';
+    const isLocal=node.data.isLocal||false;
+    const name=node.data.localName||'';
+    const blobUrl=blobMap[id]||'';
+    const mode=node.data.srcMode||null;
+    const fileOpen=mode==='file'?'open':'';
+    const urlOpen =mode==='url' ?'open':'';
+    const fileActive=mode==='file'?'active':'';
+    const urlActive =mode==='url' ?'active':'';
+
+    let player='';
+    if(isLocal&&blobUrl){
+      player=`<video class="nvnat" src="${blobUrl}" controls style="margin-top:8px"></video>`;
+    } else if(isLocal&&!blobUrl&&name){
+      player=`
+        <div style="padding:9px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--dim);margin-top:8px">
+          📂 <strong style="color:var(--text)">${esc(name)}</strong><br>
+          <span>Video local — recárgalo:</span><br><br>
+          <label class="msbtn" style="cursor:pointer">🔄 Recargar
+            <input type="file" accept="video/*" style="display:none"
+              onchange="handleVid('${id}',this.files[0])"/>
+          </label>
+        </div>`;
+    } else if(!isLocal&&url){
+      const em=embedUrl(url);
+      player=em
+        ?`<div class="nvw" style="margin-top:8px"><iframe src="${em}" allowfullscreen allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"></iframe></div>`
+        :`<p style="color:var(--dim);font-size:11px;margin-top:6px">Soporta YouTube y Vimeo.</p>`;
+    }
+
+    return `
+      <div class="nh"><span class="ni">🎬</span><span class="nt">Video</span>${delBtn}</div>
+      <div class="nbody">
+        <div class="msrow">
+          <button class="msbtn ${fileActive}" onclick="toggleSource('${id}',0)">📁 Archivo</button>
+          <span class="msep">·</span>
+          <button class="msbtn ${urlActive}"  onclick="toggleSource('${id}',1)">🔗 URL</button>
+        </div>
+        <div class="mpanel ${fileOpen}">
+          <label class="msbtn" style="cursor:pointer">
+            📂 Seleccionar video
+            <input type="file" accept="video/*,video/mp4,video/webm,video/ogg" style="display:none"
+              onchange="handleVid('${id}',this.files[0])"/>
+          </label>
+        </div>
+        <div class="mpanel ${urlOpen}">
+          <input class="nui" placeholder="YouTube, Vimeo…"
+            value="${esc(isLocal?'':url)}"
+            data-nid="${id}" data-key="url" data-videoblock="1"/>
+        </div>
+        ${player}
+        ${posRow}
+      </div>
+      <div class="nrz"></div>`;
+  }
+
+  return '<div class="nbody">Tipo desconocido</div>';
+}
+
+/* ═══ LISTENERS DE INPUTS ═════════════════════════════════════ */
+function attachInputs(el,node){
+  // Textarea → autosave + autoresize
+  el.querySelectorAll('.nta').forEach(ta=>{
+    ta.oninput=null;
+    ta.addEventListener('input',()=>{
+      updData(ta.dataset.nid,ta.dataset.key,ta.value);
+      ta.style.height='auto';
+      ta.style.height=ta.scrollHeight+'px';
+      const board=getBoard();
+      const n=board?.nodes.find(n=>n.id===ta.dataset.nid);
+      if(n){n.data.h=ta.scrollHeight;save();}
+    });
+  });
+
+  // URL / link inputs → commit al blur o Enter → re-render
+  el.querySelectorAll('[data-imgblock],[data-linkblock],[data-videoblock]').forEach(inp=>{
+    inp.onblur=null; inp.onkeydown=null;
+    const commit=()=>{
+      const board=getBoard(); if(!board) return;
+      const n=board.nodes.find(n=>n.id===node.id); if(!n) return;
+      if(inp.dataset.videoblock){
+        n.data.isLocal=false; n.data.localName='';
+        if(blobMap[node.id]){URL.revokeObjectURL(blobMap[node.id]);delete blobMap[node.id];}
+      }
+      n.data[inp.dataset.key]=inp.value;
+      // recordar srcMode
+      if(inp.dataset.imgblock||inp.dataset.videoblock) n.data.srcMode='url';
+      save(); renderNode(n);
+    };
+    inp.addEventListener('blur',commit);
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();commit();} });
+  });
+}
+
+/* ═══ PANEL PIZARRAS ═════════════════════════════════════════ */
+const panel=document.getElementById('panel');
+let panelPos={x:14,y:60};
+function applyPanelPos(){
+  const maxX=innerWidth-panel.offsetWidth-8;
+  const maxY=innerHeight-80;
+  panelPos.x=Math.max(8,Math.min(panelPos.x,maxX));
+  panelPos.y=Math.max(8,Math.min(panelPos.y,maxY));
+  panel.style.left=panelPos.x+'px'; panel.style.top=panelPos.y+'px';
+}
+document.getElementById('btnMenu').addEventListener('click',()=>panel.classList.toggle('open'));
+document.getElementById('btnNB').addEventListener('click',createBoard);
+
+function renderPanel(){
+  const list=document.getElementById('blist'); list.innerHTML='';
+  S.boards.forEach(b=>{
+    const item=document.createElement('div');
+    item.className='bi'+(b.id===S.activeId?' active':'');
+    item.innerHTML=`
+      <span class="bem">${b.emoji}</span>
+      <input class="bnm" value="${esc(b.name)}"
+        onchange="renameBoard('${b.id}',this.value)"
+        onclick="selectBoard('${b.id}')"
+        onkeydown="if(event.key==='Enter')this.blur()"/>
+      <button class="bdel" onclick="event.stopPropagation();deleteBoard('${b.id}')" title="Eliminar">✕</button>`;
+    list.appendChild(item);
+  });
+}
+
+/* ═══ EMOJI PICKER ════════════════════════════════════════════ */
+const picker=document.getElementById('epicker');
+picker.innerHTML=EMOJIS.map(e=>`<span class="eopt">${e}</span>`).join('');
+function openEmoji(bid,btn){
+  emojiTarget=bid;
+  const r=btn.getBoundingClientRect();
+  picker.style.display='flex'; picker.style.top=(r.bottom+6)+'px'; picker.style.left=r.left+'px';
+}
+picker.addEventListener('click',e=>{
+  if(e.target.classList.contains('eopt')&&emojiTarget){
+    setEmoji(emojiTarget,e.target.textContent);
+    picker.style.display='none'; emojiTarget=null;
+  }
+});
+document.addEventListener('click',e=>{
+  if(!picker.contains(e.target)&&!e.target.closest('.bem')) picker.style.display='none';
+});
+
+/* ═══ INIT ════════════════════════════════════════════════════ */
+load(); renderPanel(); renderWorld(); applyCAM(); applyPanelPos();
+
+if(!S.boards.length){
+  const bid=uid(), nid=uid();
+  S.boards.push({id:bid,name:'Mi primera pizarra',emoji:'✨',nodes:[{
+    id:nid,type:'text',x:-130,y:-70,w:300,
+    data:{content:'¡Bienvenido a la pizarra infinita! 🎨\n\n• Arrastra desde la cabecera coloreada\n• Pan: arrastra el fondo vacío\n• Zoom: rueda del ratón o pellizco\n• Posición exacta con los campos X / Y\n• En imagen y video: elige entre archivo o URL\n  con los botones 📁 / 🔗'}
+  }]});
+  S.activeId=bid;
+  save(); renderPanel(); renderWorld();
+}
+</script>
+</body>
+</html>
